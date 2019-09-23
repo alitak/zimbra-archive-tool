@@ -5,11 +5,12 @@ For archiving unused domains. We had a lot of domains, accounts, which were unus
 
 ## Usage:
 chmod +x backup_script.sh  
-./backup_script.sh [-h] [-d] [-s] [-f path]
+./backup_script.sh [-h] [-d] [-p] [-s] [-f path]
 
 ## Parameters
 - -h help, lists usage options
 - -d delete, after creating archive, deletes account
+- -p password, stores password hash to file
 - -s sync, on the end of the script will rsync to given place archives
 - -f file, work from given file, otherwise will list domains from zimbra
 
