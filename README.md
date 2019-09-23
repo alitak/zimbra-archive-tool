@@ -4,7 +4,7 @@ Zimbra mailing system domain/account archive tool
 For archiving unused domains. We had a lot of domains, accounts, which were unused on our server. This script lists distribution lists, accounts for domain and archives is. Also can delete accounts and domain.
 
 ## Usage:
-chmod +x backup_script.sh
+chmod +x backup_script.sh  
 ./backup_script.sh [-h] [-d] [-s] [-f path]
 
 ## Parameters
