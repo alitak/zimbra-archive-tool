@@ -14,14 +14,16 @@ BASE_PATH=`pwd`
 
 DELETE_ACCOUNT=false
 RSYNC=false
+SAVE_PASSWORDS=false
 SOURCE_FILE=false
 FROM_DEDICATED_SOURCE=false
 
-while getopts "hdsf:" option
+while getopts "hdspf:" option
 do
     case $option in
-        h) printf "usage: $0 [-h] [-d] [-s] [-f path]\n";exit;;
+        h) printf "usage: $0 [-h] [-d] [-s] [-p] [-f path]\n";exit;;
         d) DELETE_ACCOUNT=true;;
+        p) SAVE_PASSWORDS=true;;
         s) RSYNC=true;;
         f) SOURCE_FILE="$BASE_PATH""/""$OPTARG";FROM_DEDICATED_SOURCE=true;;
     esac
@@ -39,6 +41,7 @@ fi
 printf "${NC}\n"
 
 printf "Delete account ${Y}""$DELETE_ACCOUNT""${NC}\n"
+printf "Save passwords ${Y}""$SAVE_PASSWORDS""${NC}\n"
 printf "Sync account ${Y}""$RSYNC""${NC}\n"
 
 printf "${Y}Start script (y*/n)?${NC} "
@@ -50,6 +53,7 @@ else
     exit
 fi
 
+# let the magic happens
 while read domain;
 do
     printf "${Y}========== $domain ==========${NC}\n"
@@ -64,6 +68,7 @@ do
         printf "listing $dl"
         `zmprov gdlm "$dl" >> "$BACKUP_PATH""$domain"/distribution_lists.txt`
         printf "  ${G}[DONE]${NC}"
+        # delete distribution list, before deleting account if parameter set
         if [ "$DELETE_ACCOUNT" = true ]; then
             printf "  deleting distribution list: $dl"
             `zmprov ddl "$dl"`
@@ -73,22 +78,22 @@ do
     done
 
     printf "${Y}Creating account backups${NC}\n"
-    # loop accounts, create targz
+    # loop accounts, list aliases, save password create targz
     zmprov -l gaa "$domain" | while read account
     do
-        IFS='@' read -r -a array <<< "$account"
-        account=${array[0]}"@""$domain"
-
         # get aliases
         printf "listing ""$account"" aliases"
-        `zmprov ga "$account" | grep zimbraMailAlias > tmp_aliases.txt`
-        while read alias; do
-            alias=${alias#"zimbraMailAlias: "}
-            `echo $alias >> "$BACKUP_PATH""$domain"/"$account"_aliases.txt`
-        done < tmp_aliases.txt 
-        `rm tmp_aliases.txt`
+        `zmprov ga "$account" | grep zimbraMailAlias | sed 's/zimbraMailAlias: //' > "$BACKUP_PATH""$domain"/"$account"_aliases.txt`
         printf "  ${G}[DONE]${NC}\n"
 
+        # get password hash
+        if [ "$SAVE_PASSWORDS" = true ]; then
+            printf "saving ""$account"" password"
+            `zmprov -l ga "$account" userPassword | grep userPassword | sed 's/userPassword: //' > "$BACKUP_PATH""$domain"/"$account"_pw_hash.txt`
+			printf "  ${G}[DONE]${NC}\n"
+        fi
+        
+        # create archive
         printf "creating archive: $domain - $account"
         `zmmailbox -z -m "$account" getRestURL "//?fmt=tgz" > "$BACKUP_PATH""$domain""/""$account"".tar.gz"`
         printf "  ${G}[DONE]${NC}\n"
@@ -99,9 +104,10 @@ do
         fi
     done
 
+    # delete account, it parameter set
     if [ "$DELETE_ACCOUNT" = true ]; then
         printf "deleting postmaster alias"
-        `zmprov raa admin@zimbra.different.hu postmaster@"$domain"`
+        `zmprov raa postmaster@"$domain"`
         printf "  ${G}[DELETED]${NC}\n"
         printf "deleting domain: $domain"
         `zmprov dd "$domain"`
