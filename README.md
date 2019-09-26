@@ -1,4 +1,4 @@
-# zimbra-archive-tool
+# zimbra-migration-tool
 Zimbra mailing system domain/account migration tool
 
 For archiving unused domains. We had a lot of domains, accounts, which were unused on our server. This script lists distribution lists, accounts for domain and archives is. Also can delete accounts and domain.
@@ -16,6 +16,7 @@ chmod +x backup_accounts.sh
 
 ## Usage for restore:
 chmod +x restore_accounts.sh
+./restore_accounts.sh
 
 Before run, set variables in .env (see: .env.example)
 
