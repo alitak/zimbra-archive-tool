@@ -18,12 +18,11 @@ SAVE_PASSWORDS=false
 SOURCE_FILE=false
 FROM_DEDICATED_SOURCE=false
 
-while getopts "hdspf:" option
+while getopts "hdsf:" option
 do
     case $option in
-        h) printf "usage: $0 [-h] [-d] [-s] [-p] [-f path]\n";exit;;
+        h) printf "usage: $0 [-h] [-d] [-s] [-f path]\n";exit;;
         d) DELETE_ACCOUNT=true;;
-        p) SAVE_PASSWORDS=true;;
         s) RSYNC=true;;
         f) SOURCE_FILE="$BASE_PATH""/""$OPTARG";FROM_DEDICATED_SOURCE=true;;
     esac
@@ -41,7 +40,6 @@ fi
 printf "${NC}\n"
 
 printf "Delete account ${Y}""$DELETE_ACCOUNT""${NC}\n"
-printf "Save passwords ${Y}""$SAVE_PASSWORDS""${NC}\n"
 printf "Sync account ${Y}""$RSYNC""${NC}\n"
 
 printf "${Y}Start script (y*/n)?${NC} "
@@ -62,11 +60,15 @@ do
 
     # get distribution lists
     printf "${Y}distribution lists${NC}\n"
-    `touch "$BACKUP_PATH""$domain"/distribution_lists.txt`
+    #`touch "$BACKUP_PATH""$domain"/distribution_lists.txt`
     zmprov gadl "$domain" | while read dl
     do
         printf "listing $dl"
-        `zmprov gdlm "$dl" >> "$BACKUP_PATH""$domain"/distribution_lists.txt`
+        zmprov gdlm $dl | while read line; do
+            if [[ ${line:0:1} != "#" ]] && [ "$line" != "" ] && [ "$line" != "members" ]; then
+            echo $line >> "$BACKUP_PATH""$domain"/distribution_lists_$dl.txt
+            fi
+        done
         printf "  ${G}[DONE]${NC}"
         # delete distribution list, before deleting account if parameter set
         if [ "$DELETE_ACCOUNT" = true ]; then
@@ -78,7 +80,7 @@ do
     done
 
     printf "${Y}Creating account backups${NC}\n"
-    # loop accounts, list aliases, save password create targz
+    # loop accounts, list aliases, save configs, create targz
     zmprov -l gaa "$domain" | while read account
     do
         # get aliases
@@ -86,13 +88,15 @@ do
         `zmprov ga "$account" | grep zimbraMailAlias | sed 's/zimbraMailAlias: //' > "$BACKUP_PATH""$domain"/"$account"_aliases.txt`
         printf "  ${G}[DONE]${NC}\n"
 
-        # get password hash
-        if [ "$SAVE_PASSWORDS" = true ]; then
-            printf "saving ""$account"" password"
-            `zmprov -l ga "$account" userPassword | grep userPassword | sed 's/userPassword: //' > "$BACKUP_PATH""$domain"/"$account"_pw_hash.txt`
-			printf "  ${G}[DONE]${NC}\n"
-        fi
-        
+        # get configs
+        printf "saving ""$account"" configs"
+        while IFS=',' read -ra config; do
+            for i in ${config[@]}; do
+                echo $i" \""`zmprov -l ga $account $i | grep $i | sed "s/$i: //"`"\"" >> "$BACKUP_PATH""$domain"/"$account"_configs.txt
+            done
+        done <<< $CONFIGS
+        printf "  ${G}[DONE]${NC}\n"
+
         # create archive
         printf "creating archive: $domain - $account"
         `zmmailbox -z -m "$account" getRestURL "//?fmt=tgz" > "$BACKUP_PATH""$domain""/""$account"".tar.gz"`
@@ -131,7 +135,7 @@ do
     `rmdir "$BACKUP_PATH""$domain"`
     printf "  ${G}[DELETED]${NC}\n"
 
-	if [ "$RSYNC" = true ]; then
+    if [ "$RSYNC" = true ]; then
         # rsync tar to new zimbra
         printf "${Y}rsync ""$domain${NC}"
         `"$WHICH_RSYNC" --remove-source-files -e ssh "$BACKUP_PATH""$domain".tar.gz "$REMOTE_USER"@"$REMOTE_SERVER":"$REMOTE_PATH"`
