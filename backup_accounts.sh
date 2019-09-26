@@ -92,7 +92,7 @@ do
         printf "saving ""$account"" configs"
         while IFS=',' read -ra config; do
             for i in ${config[@]}; do
-                echo $i" \""`zmprov -l ga $account $i | grep $i | sed "s/$i: //"`"\"" >> "$BACKUP_PATH""$domain"/"$account"_configs.txt
+                echo $i" "`zmprov -l ga $account $i | grep $i | sed "s/$i: //"` >> "$BACKUP_PATH""$domain"/"$account"_configs.txt
             done
         done <<< $CONFIGS
         printf "  ${G}[DONE]${NC}\n"
