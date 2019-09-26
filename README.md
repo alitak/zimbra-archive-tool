@@ -21,3 +21,5 @@ Before run, set variables in .env (see: .env.example)
 
 ## Feel free to expand, update this script.
 Contact me at a[at]diff.hu
+
+### Also big fckn thanks for Eluch!
